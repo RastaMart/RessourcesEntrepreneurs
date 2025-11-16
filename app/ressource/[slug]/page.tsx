@@ -6,7 +6,7 @@ import { createClient as createBrowserClient } from "@supabase/supabase-js";
 import SocialIcon from "../../../components/SocialIcon";
 
 type Props = {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 };
 
 // Helper pour créer un client Supabase sans cookies (pour le build statique)
@@ -27,11 +27,12 @@ export async function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params;
   const supabase = getStaticSupabaseClient();
   const { data } = await supabase
     .from("resources")
     .select("*")
-    .eq("slug", params.slug)
+    .eq("slug", slug)
     .single();
 
   if (!data) {
@@ -59,6 +60,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function ResourcePage({ params }: Props) {
+  const { slug } = await params;
   const supabase = getStaticSupabaseClient();
   const { data } = await supabase
     .from("resources")
@@ -71,7 +73,7 @@ export default async function ResourcePage({ params }: Props) {
       )
     `
     )
-    .eq("slug", params.slug)
+    .eq("slug", slug)
     .single();
 
   const resource = data

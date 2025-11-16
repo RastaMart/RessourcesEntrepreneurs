@@ -1,10 +1,8 @@
 import HomeClient from "../components/HomeClient";
-import { cookies } from "next/headers";
 import { createClient } from "../util/supabase/server";
 
 export default async function HomePage() {
-  const cookieStore = cookies();
-  const supabase = createClient(cookieStore);
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("resources")
     .select(`

@@ -67,8 +67,7 @@ function mapRowToUi(row: DbResource): UiResource {
 }
 
 export async function fetchAllResources(): Promise<UiResource[]> {
-  const cookieStore = cookies();
-  const supabase = createSupabaseServer(cookieStore);
+  const supabase = await createSupabaseServer();
   const { data, error } = await supabase
     .from("resources")
     .select(
@@ -83,8 +82,7 @@ export async function fetchAllResources(): Promise<UiResource[]> {
 }
 
 export async function fetchResourceBySlug(slug: string): Promise<UiResource | null> {
-  const cookieStore = cookies();
-  const supabase = createSupabaseServer(cookieStore);
+  const supabase = await createSupabaseServer();
   const { data, error } = await supabase
     .from("resources")
     .select(
