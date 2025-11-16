@@ -155,16 +155,14 @@ export default function HomeClient({ resources }: Props) {
         <div className="re-container re-header-inner">
           <div className="re-logo">
             <span className="re-logo-mark">RE</span>
-            <div className="re-logo-text">
+            <Link href="/" className="re-logo-text">
               <span className="re-logo-title">Ressources Entrepreneurs</span>
               <span className="re-logo-subtitle">
                 Répertoire d’accompagnement
               </span>
-            </div>
+            </Link>
           </div>
-          <nav className="re-nav">
-            <span className="re-nav-link re-nav-link--active">Ressources</span>
-          </nav>
+          <nav className="re-nav"></nav>
         </div>
       </header>
 
