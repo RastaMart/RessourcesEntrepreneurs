@@ -18,6 +18,9 @@ export type Resource = {
   contacts?: string;
   autres?: string;
   supports: string[];
+  metaDescription?: string | null;
+  metaImage?: string | null;
+  socials?: Array<{ platform: string; url: string }>;
 };
 
 const SUPPORT_COLUMNS: Record<string, string> = {
@@ -64,7 +67,37 @@ export function getAllResources(): Resource[] {
     trim: true,
   }) as Record<string, string>[];
 
-  return records
+  // Charger les métadonnées scrappées si disponibles
+  let metaBySlug: Record<
+    string,
+    { url?: string; description?: string | null; imageUrl?: string | null; savedImage?: string | null }
+  > = {};
+  try {
+    const scrapedPath = path.join(process.cwd(), "data", "scraped-meta.json");
+    if (fs.existsSync(scrapedPath)) {
+      const raw = fs.readFileSync(scrapedPath, "utf8");
+      metaBySlug = JSON.parse(raw);
+    }
+  } catch {
+    // ignore lecture des métas
+  }
+
+  // Charger des ressources ajoutées manuellement (JSON)
+  let customResources: Resource[] = [];
+  try {
+    const customPath = path.join(process.cwd(), "data", "custom-resources.json");
+    if (fs.existsSync(customPath)) {
+      const raw = fs.readFileSync(customPath, "utf8");
+      const list = JSON.parse(raw);
+      if (Array.isArray(list)) {
+        customResources = list as Resource[];
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  const base = records
     .filter((row) => row["Nom"])
     .map((row) => {
       const supports: string[] = [];
@@ -74,6 +107,22 @@ export function getAllResources(): Resource[] {
           supports.push(label);
         }
       });
+
+      const slug = slugify(row["Nom"]);
+      const meta = metaBySlug[slug] || {};
+      // Support rétrocompatibilité: si savedImage pointe vers data/scraped_images,
+      // réécrire vers /scraped_images (servi depuis public/)
+      let savedImage = (meta.savedImage as string) || null;
+      if (savedImage && savedImage.startsWith("data/scraped_images/")) {
+        // Ancien chemin → nouveau dossier statique public/ressources_images
+        const file = savedImage.split("/").pop() as string;
+        savedImage = `/ressources_images/${file}`;
+      }
+      if (savedImage && savedImage.startsWith("/scraped_images/")) {
+        // Ancienne URL publique → nouvelle URL
+        const file = savedImage.split("/").pop() as string;
+        savedImage = `/ressources_images/${file}`;
+      }
 
       return {
         slug: slugify(row["Nom"]),
@@ -91,8 +140,13 @@ export function getAllResources(): Resource[] {
         contacts: row["Contacts"],
         autres: row["Autres"],
         supports,
+        metaDescription: (meta.description as string) || null,
+        metaImage: savedImage || (meta.imageUrl as string) || null,
       };
     });
+
+  // Fusionner avec les ressources ajoutées manuellement (en tête de liste)
+  return [...customResources, ...base];
 }
 
 export function getResourceBySlug(slug: string): Resource | undefined {

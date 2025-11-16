@@ -46,4 +46,8 @@ coverage/
 turbo/
 rush-logs/
 
+# Scraped images (generated)
+public/ressources_images/
+!public/ressources_images/placeholder.svg
+
 node_modules

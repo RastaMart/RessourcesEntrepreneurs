@@ -44,15 +44,23 @@ function useFilteredResources(raw: Resource[]) {
 
     return raw.filter((r) => {
       if (term) {
+        // Recherche dans plusieurs champs (insensible à la casse)
         const haystack = [
           r.nom,
           r.type,
+          r.typeOrganisation,
           r.secteur,
           r.services,
           r.publicCible,
           r.autres,
           r.localisation,
+          r.geographie,
           r.geographie2,
+          r.site,
+          r.modalite,
+          r.contacts,
+          r.metaDescription,
+          ...(r.supports || []),
         ]
           .filter(Boolean)
           .join(" ")
@@ -133,6 +141,11 @@ export default function HomeClient({ resources }: Props) {
     useFilteredResources(resources);
 
   const [showFilters, setShowFilters] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [newUrl, setNewUrl] = useState("");
+  const [preview, setPreview] = useState<any | null>(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const handleToggleFilter = (group: keyof Filters, value: string) => {
     toggleFilter(group, value);
@@ -149,16 +162,87 @@ export default function HomeClient({ resources }: Props) {
     setShowFilters(false);
   };
 
+  const handleOpenModal = () => {
+    setShowModal(true);
+    setNewUrl("");
+    setPreview(null);
+  };
+
+  const handleFetchPreview = async () => {
+    if (!newUrl.trim()) return;
+    setLoadingPreview(true);
+    setPreview(null);
+    try {
+      const res = await fetch("/api/resource/preview", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ url: newUrl.trim() }),
+      });
+      const data = await res.json();
+      setPreview(data);
+    } finally {
+      setLoadingPreview(false);
+    }
+  };
+
+  const handleAddResource = async () => {
+    if (!preview?.ok) return;
+    setSaving(true);
+    try {
+      const nom = preview.title || newUrl;
+      const slug = nom
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+      const payload = {
+        slug,
+        nom,
+        type: "",
+        typeOrganisation: "",
+        localisation: "",
+        geographie: "",
+        geographie2: "",
+        site: preview.usedUrl || newUrl,
+        secteur: "",
+        modalite: "",
+        services: "",
+        publicCible: "",
+        contacts: "",
+        autres: "",
+        supports: [],
+        metaDescription: preview.description || null,
+        metaImage: preview.imageUrl || null,
+        socials: preview.socials || null,
+      };
+      const res = await fetch("/api/resource/add", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (data?.ok) {
+        setShowModal(false);
+        window.location.reload();
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <>
       <header className="re-header">
         <div className="re-container re-header-inner">
           <div className="re-logo">
-            <span className="re-logo-mark">RE</span>
-            <Link href="/" className="re-logo-text">
-              <span className="re-logo-title">Ressources Entrepreneurs</span>
-              <span className="re-logo-subtitle">
-                Répertoire d’accompagnement
+            <Link href="/" className="re-logo-link">
+              <span className="re-logo-mark">RE</span>
+              <span className="re-logo-text">
+                <span className="re-logo-title">Ressources Entrepreneurs</span>
+                <span className="re-logo-subtitle">
+                  Répertoire d’accompagnement
+                </span>
               </span>
             </Link>
           </div>
@@ -301,13 +385,18 @@ export default function HomeClient({ resources }: Props) {
                 {filtered.length > 1 ? "s" : ""} affichée
                 {filtered.length > 1 ? "s" : ""}
               </p>
-              <button
-                className="re-btn-toggle-filters"
-                type="button"
-                onClick={() => setShowFilters((prev) => !prev)}
-              >
-                {showFilters ? "Masquer les filtres" : "Afficher les filtres"}
-              </button>
+              <div style={{ display: "flex", gap: ".5rem", alignItems: "center" }}>
+                <button className="re-btn-secondary" type="button" onClick={handleOpenModal}>
+                  Ajouter une ressource
+                </button>
+                <button
+                  className="re-btn-toggle-filters"
+                  type="button"
+                  onClick={() => setShowFilters((prev) => !prev)}
+                >
+                  {showFilters ? "Masquer les filtres" : "Afficher les filtres"}
+                </button>
+              </div>
             </div>
             <div className="re-cards-grid">
               {filtered.map((r) => {
@@ -317,6 +406,13 @@ export default function HomeClient({ resources }: Props) {
                   href={`/ressource/${r.slug}`}
                   className="re-card"
                 >
+                  <img
+                    src={r.metaImage || "/ressources_images/placeholder.svg"}
+                    alt={r.nom}
+                    className="re-card-thumb"
+                    loading="lazy"
+                    referrerPolicy="no-referrer"
+                  />
                   <div className="re-card-header">
                     <div className="re-card-headings">
                       <h3 className="re-card-title">{r.nom}</h3>
@@ -374,6 +470,70 @@ export default function HomeClient({ resources }: Props) {
           </div>
         </section>
       </main>
+
+      {showModal && (
+        <div className="re-modal">
+          <div className="re-modal-backdrop" onClick={() => setShowModal(false)} />
+          <div className="re-modal-dialog" role="dialog" aria-modal="true">
+            <div className="re-modal-header">
+              <h3>Ajouter une ressource</h3>
+            </div>
+            <div className="re-modal-body">
+              <label className="re-field-label">URL du site de la ressource</label>
+              <input
+                type="url"
+                placeholder="https://…"
+                value={newUrl}
+                onChange={(e) => setNewUrl(e.target.value)}
+                className="re-input"
+              />
+              <div style={{ marginTop: ".5rem", display: "flex", gap: ".5rem" }}>
+                <button
+                  type="button"
+                  className="re-btn-primary"
+                  onClick={handleFetchPreview}
+                  disabled={loadingPreview || !newUrl.trim()}
+                >
+                  {loadingPreview ? "Analyse…" : "Analyser l’URL"}
+                </button>
+                <button className="re-btn-link" onClick={() => setShowModal(false)}>
+                  Annuler
+                </button>
+              </div>
+
+              {preview && (
+                <div className="re-preview">
+                  <div className="re-preview-row">
+                    <span className="re-preview-label">Titre</span>
+                    <span>{preview.title || "—"}</span>
+                  </div>
+                  <div className="re-preview-row">
+                    <span className="re-preview-label">Description</span>
+                    <span>{preview.description || "—"}</span>
+                  </div>
+                  <div className="re-preview-row">
+                    <span className="re-preview-label">URL utilisée</span>
+                    <span>{preview.usedUrl || newUrl}</span>
+                  </div>
+                  <div className="re-preview-row">
+                    <span className="re-preview-label">Image</span>
+                    <span>{preview.imageUrl || "—"}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="re-modal-footer">
+              <button
+                className="re-btn-primary"
+                onClick={handleAddResource}
+                disabled={!preview?.ok || saving}
+              >
+                {saving ? "Ajout…" : "Ajouter"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
