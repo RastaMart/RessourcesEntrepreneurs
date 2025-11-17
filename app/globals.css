@@ -91,6 +91,26 @@ body {
   gap: 0.5rem;
 }
 
+.re-nav-auth {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.re-user-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.9rem;
+  background: #f3f4f6;
+  border-radius: 999px;
+  font-size: 0.85rem;
+}
+
+.re-user-email {
+  color: #111827;
+}
+
 .re-nav-link {
   border: none;
   background: transparent;
@@ -345,6 +365,8 @@ body {
     border-color 140ms ease, background-color 160ms ease;
   text-decoration: none;
   color: inherit;
+  position: relative;
+  z-index: 2;
 }
 
 .re-card-thumb {
@@ -451,6 +473,27 @@ body {
   border: 1px solid rgba(129, 140, 248, 0.45);
 }
 
+.re-tag--link {
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease, border-color 140ms ease,
+    transform 120ms ease, box-shadow 140ms ease;
+  display: inline-block;
+}
+
+.re-tag--link:hover {
+  background: #dbeafe;
+  color: #1e40af;
+  border-color: rgba(59, 130, 246, 0.65);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+}
+
+.re-tag--link:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.15);
+}
+
 .re-card-footer {
   margin-top: 0.25rem;
   display: flex;
@@ -552,6 +595,23 @@ body {
   font-size: 0.88rem;
 }
 
+.re-admin-box {
+  border-radius: 1.1rem;
+  padding: 1.2rem 1.3rem;
+  background: #fef3c7;
+  border: 1px solid rgba(251, 191, 36, 0.5);
+  margin-bottom: 1.5rem;
+}
+
+.re-admin-box-title {
+  margin: 0 0 0.75rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #92400e;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
 .re-detail-sidebar-label {
   display: block;
   font-size: 0.78rem;
@@ -603,6 +663,7 @@ body {
   box-shadow: 0 30px 60px rgba(15, 23, 42, 0.18);
 }
 .re-modal-header {
+  position: relative;
   padding: 1rem 1.1rem 0.5rem;
   border-bottom: 1px solid rgba(148, 163, 184, 0.25);
 }
@@ -711,4 +772,233 @@ body {
   }
 }
 
-/* ... le reste du CSS sera ajouté au fur et à mesure dans les composants pour garder le fichier lisible ... */
+/* Resource Type Menu */
+.re-resource-menu {
+  padding: 2.5rem 0;
+  background: #ffffff;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.re-resource-menu-title {
+  margin: 0 0 1.5rem;
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.re-resource-menu-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.re-resource-menu-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.25rem 1rem;
+  background: linear-gradient(180deg, #ffffff 0%, #f9fafb 100%);
+  border-radius: 1rem;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  text-decoration: none;
+  color: inherit;
+  transition: box-shadow 160ms ease, transform 140ms ease,
+    border-color 140ms ease;
+  cursor: pointer;
+}
+
+.re-resource-menu-item:hover {
+  box-shadow: 0 22px 46px rgba(15, 23, 42, 0.12);
+  transform: translateY(-2px);
+  border-color: rgba(37, 99, 235, 0.45);
+}
+
+.re-resource-menu-item-icon {
+  width: 100%;
+  height: 120px;
+  border-radius: 0.8rem;
+  overflow: hidden;
+  background: #f3f4f6;
+  position: relative;
+}
+
+.re-resource-menu-item-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.re-resource-menu-item-label {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #111827;
+  text-align: center;
+}
+
+/* Resource Type Page Header */
+.re-type-header {
+  position: relative;
+  margin-top: -1rem;
+  margin-bottom: 0;
+  z-index: 1;
+}
+
+.re-type-header-image {
+  position: relative;
+  width: 100%;
+  height: 400px;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.re-type-header-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.re-type-header-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(15, 23, 42, 0.7) 0%,
+    rgba(15, 23, 42, 0.4) 100%
+  );
+}
+
+.re-type-header-content {
+  position: relative;
+  margin-top: -320px;
+  padding: 2rem 0 3rem;
+  z-index: 3;
+  color: #ffffff;
+}
+
+.re-type-header-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+  color: #ffffff;
+  text-decoration: none;
+  margin-bottom: 1.5rem;
+  opacity: 0.9;
+  transition: opacity 160ms ease;
+}
+
+.re-type-header-back:hover {
+  opacity: 1;
+}
+
+.re-type-header-title {
+  margin: 0 0 0.75rem;
+  font-size: 2.5rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: #ffffff;
+  text-shadow: 0 2px 8px rgba(15, 23, 42, 0.3);
+}
+
+.re-type-header-description {
+  margin: 0;
+  font-size: 1.1rem;
+  color: rgba(255, 255, 255, 0.95);
+  text-shadow: 0 1px 4px rgba(15, 23, 42, 0.2);
+  max-width: 700px;
+}
+
+.re-type-resources {
+  padding: 0 0 2rem;
+  position: relative;
+  margin-top: -80px;
+  padding-top: 2rem;
+  z-index: 2;
+}
+
+.re-type-resources-header {
+  margin-bottom: 1.5rem;
+  position: relative;
+  z-index: 1;
+}
+
+.re-type-resources .re-cards-grid {
+  position: relative;
+  z-index: 2;
+}
+
+@media (max-width: 960px) {
+  .re-resource-menu-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .re-type-header-image {
+    height: 300px;
+  }
+
+  .re-type-header-content {
+    margin-top: -240px;
+    padding: 1.5rem 0 2.5rem;
+    z-index: 3;
+  }
+
+  .re-type-header-title {
+    font-size: 2rem;
+  }
+
+  .re-type-header-description {
+    font-size: 1rem;
+  }
+
+  .re-type-resources {
+    margin-top: -60px;
+    padding-top: 1.5rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .re-resource-menu {
+    padding: 2rem 0;
+  }
+
+  .re-resource-menu-title {
+    font-size: 1.15rem;
+    margin-bottom: 1rem;
+  }
+
+  .re-resource-menu-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .re-resource-menu-item {
+    padding: 1rem 0.75rem;
+  }
+
+  .re-resource-menu-item-icon {
+    height: 100px;
+  }
+
+  .re-type-header-image {
+    height: 250px;
+  }
+
+  .re-type-header-content {
+    margin-top: -200px;
+    padding: 1rem 0 2rem;
+    z-index: 3;
+  }
+
+  .re-type-header-title {
+    font-size: 1.75rem;
+  }
+
+  .re-type-header-description {
+    font-size: 0.95rem;
+  }
+
+  .re-type-resources {
+    margin-top: -40px;
+    padding-top: 1rem;
+  }
+}

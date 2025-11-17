@@ -1,0 +1,9 @@
+---
+description: Database and migration instructions
+globs:
+alwaysApply: true
+---
+
+When suggesting database changes, always create proper migrations rather than direct schema modifications.
+Use the date as the migration prefix. Se existing migration prefix for pattern and date format (yyyymmdd).
+Always use `supabase migration up` instead of `supabase db push` when creating or applying new database migrations.

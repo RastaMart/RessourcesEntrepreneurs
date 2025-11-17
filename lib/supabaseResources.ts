@@ -73,6 +73,7 @@ export async function fetchAllResources(): Promise<UiResource[]> {
     .select(
       "slug, nom, type, type_organisation, localisation, geographie, geographie2, site, secteur, modalite, services, public_cible, contacts, autres, supports, meta_description, image_url, socials"
     )
+    .is("deleted_at", null)
     .order("nom", { ascending: true });
   if (error) {
     console.error("Supabase fetchAllResources error:", error.message);
@@ -89,6 +90,7 @@ export async function fetchResourceBySlug(slug: string): Promise<UiResource | nu
       "slug, nom, type, type_organisation, localisation, geographie, geographie2, site, secteur, modalite, services, public_cible, contacts, autres, supports, meta_description, image_url, socials"
     )
     .eq("slug", slug)
+    .is("deleted_at", null)
     .maybeSingle();
   if (error) {
     console.error("Supabase fetchResourceBySlug error:", error.message);

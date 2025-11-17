@@ -6,6 +6,7 @@ export type Resource = {
   slug: string;
   nom: string;
   type: string;
+  types: string[];
   typeOrganisation?: string;
   localisation?: string;
   geographie?: string;

@@ -2,17 +2,19 @@
   "name": "ressourcesentrepreneurs",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "scrape:meta": "node scripts/scrape-meta.mjs",
-    "migrate:images": "node scripts/migrate-images.mjs",
-    "migrate:images:supabase": "node scripts/migrate-images-to-supabase.mjs",
-    "sync:supabase": "node scripts/sync-supabase.mjs",
-    "seed:supabase": "node scripts/seed-supabase.mjs",
-    "migrate:db": "supabase db push"
+    "createSeed": "node scripts/create-seed-with-storage.js",
+    "createStorageSeed": "node scripts/create-storage-seed.js",
+    "seedStorage": "node scripts/seed-storage.js",
+    "createMigrationFromProd": "node scripts/create-migration-from-prod.mjs",
+    "prodToLocal": "npm run createSeed && npm run createStorageSeed && supabase db reset && npm run seedStorage",
+    "resetLocalDB": "supabase db reset && npm run seedStorage"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",

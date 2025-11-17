@@ -15,11 +15,12 @@ export async function POST(req: NextRequest) {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Vérifier si la ressource existe déjà
+    // Vérifier si la ressource existe déjà (non supprimée)
     const { data: existing } = await supabase
       .from("resources")
       .select("slug")
       .eq("slug", body.slug)
+      .is("deleted_at", null)
       .single();
 
     if (existing) {
@@ -35,7 +36,10 @@ export async function POST(req: NextRequest) {
       try {
         const scraped = await scrapeMetadata(body.site, body.slug);
         if (scraped.ok) {
-          finalMetaDescription = scraped.description || finalMetaDescription;
+          // Always replace description if found during scraping
+          if (scraped.description) {
+            finalMetaDescription = scraped.description;
+          }
           finalImageUrl = scraped.imageUrl || finalImageUrl;
           finalSocials = scraped.socials || finalSocials;
         }

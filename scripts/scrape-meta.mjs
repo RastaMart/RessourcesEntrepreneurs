@@ -54,7 +54,14 @@ async function fetchHtml(url) {
 }
 
 function pickFrenchUrl($, baseUrl) {
-  // Priorité aux liens alternates hreflang
+  // 1. Check meta tags for language
+  const htmlLang = ($('html').attr("lang") || "").toLowerCase();
+  if (htmlLang.startsWith("fr")) {
+    // Already on French page
+    return baseUrl;
+  }
+
+  // 2. Check link[rel="alternate"] with hreflang
   const alternates = [];
   $('link[rel="alternate"]').each((_, el) => {
     const href = $(el).attr("href");
@@ -69,7 +76,61 @@ function pickFrenchUrl($, baseUrl) {
     alternates.find((a) => a.hreflang.startsWith("fr"));
   if (preferred && preferred.href) return preferred.href;
 
-  // Heuristiques courantes
+  // 3. Check for language menu/links in the page
+  const languageLinkPatterns = [
+    /^(fr|français|french)$/i,
+    /^fr[-\s]?ca$/i,
+    /français/i,
+  ];
+  
+  const foundLanguageLinks = [];
+  
+  $('a[href]').each((_, el) => {
+    const href = $(el).attr("href");
+    const text = $(el).text().trim();
+    const title = ($(el).attr("title") || "").trim();
+    const ariaLabel = ($(el).attr("aria-label") || "").trim();
+    const combined = `${text} ${title} ${ariaLabel}`.toLowerCase();
+    
+    // Check if link text matches French language patterns
+    if (languageLinkPatterns.some(pattern => pattern.test(combined))) {
+      const normalized = normalizeUrl(baseUrl, href);
+      if (normalized && normalized !== baseUrl) {
+        foundLanguageLinks.push(normalized);
+      }
+    }
+    
+    // Also check for common language selector patterns in href
+    if (href && /[?&](?:lang|language|locale|hl)=fr/i.test(href)) {
+      const normalized = normalizeUrl(baseUrl, href);
+      if (normalized && normalized !== baseUrl) {
+        foundLanguageLinks.push(normalized);
+      }
+    }
+  });
+
+  // 4. Check for language selector dropdowns/buttons
+  $('[class*="lang"], [class*="language"], [id*="lang"], [id*="language"]').each((_, el) => {
+    const $el = $(el);
+    // Look for French links within language selectors
+    $el.find('a[href]').each((_, linkEl) => {
+      const href = $(linkEl).attr("href");
+      const text = $(linkEl).text().trim().toLowerCase();
+      if ((text.includes("fr") || text.includes("français")) && href) {
+        const normalized = normalizeUrl(baseUrl, href);
+        if (normalized && normalized !== baseUrl) {
+          foundLanguageLinks.push(normalized);
+        }
+      }
+    });
+  });
+
+  // Return first found language link if any
+  if (foundLanguageLinks.length > 0) {
+    return foundLanguageLinks[0];
+  }
+
+  // 5. Fallback: try common URL patterns
   const candidates = [
     "/fr",
     "/fr/",
@@ -77,6 +138,7 @@ function pickFrenchUrl($, baseUrl) {
     "/fr-ca/",
     "?lang=fr",
     "?locale=fr_CA",
+    "?hl=fr",
     "/fr-ca/index.html",
   ].map((s) => normalizeUrl(baseUrl, s)).filter(Boolean);
   return candidates[0] || baseUrl;
@@ -317,10 +379,15 @@ Exemples:
     }
 
     // Mettre à jour la ressource dans Supabase
+    // Only replace description if found during scraping
     const updateData = {
-      meta_description: description || null,
       image_url: imageUrl || null,
     };
+    
+    // Only update description if we found one during scraping
+    if (description) {
+      updateData.meta_description = description;
+    }
 
     const { error: updateError } = await supabase
       .from("resources")

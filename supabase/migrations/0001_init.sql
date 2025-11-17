@@ -92,24 +92,35 @@ values ('resources', 'resources', true)
 on conflict (id) do nothing;
 
 -- Public read for objects in 'resources'
-create policy if not exists "Public read resources objects"
-  on storage.objects
-  for select
-  to anon
-  using (bucket_id = 'resources');
-
--- Allow anonymous upload/update for 'resources' (optional; needed for client/anon uploads)
-create policy if not exists "Anon insert resources objects"
-  on storage.objects
-  for insert
-  to anon
-  with check (bucket_id = 'resources');
-
-create policy if not exists "Anon update resources objects"
-  on storage.objects
-  for update
-  to anon
-  using (bucket_id = 'resources')
-  with check (bucket_id = 'resources');
+do $$
+begin
+  begin
+    create policy "Public read resources objects"
+      on storage.objects
+      for select
+      to anon
+      using (bucket_id = 'resources');
+  exception when duplicate_object then null;
+  end;
+  
+  begin
+    create policy "Anon insert resources objects"
+      on storage.objects
+      for insert
+      to anon
+      with check (bucket_id = 'resources');
+  exception when duplicate_object then null;
+  end;
+  
+  begin
+    create policy "Anon update resources objects"
+      on storage.objects
+      for update
+      to anon
+      using (bucket_id = 'resources')
+      with check (bucket_id = 'resources');
+  exception when duplicate_object then null;
+  end;
+end $$;
 
 

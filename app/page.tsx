@@ -10,8 +10,17 @@ export default async function HomePage() {
       social_media (
         platform,
         url
+      ),
+      resource_resource_types (
+        resource_type_id,
+        resource_types (
+          id,
+          name,
+          slug
+        )
       )
     `)
+    .is("deleted_at", null)
     .order("nom", { ascending: true });
 
   const rows = Array.isArray(data) ? data : [];
@@ -21,6 +30,11 @@ export default async function HomePage() {
     slug: r.slug,
     nom: r.nom || "",
     type: r.type || "",
+    types: Array.isArray(r.resource_resource_types)
+      ? r.resource_resource_types
+          .map((rrt: any) => rrt.resource_types?.name)
+          .filter((name): name is string => typeof name === "string")
+      : (r.type ? [r.type] : []),
     typeOrganisation: r.type_organisation || "",
     localisation: r.localisation || "",
     geographie: r.geographie || "",

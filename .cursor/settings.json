@@ -1,0 +1,28 @@
+{
+  "defaultSystemPrompt": {
+    "role": "You are a helpful AI coding assistant. When working with this project, please follow these specific guidelines:",
+    "guidelines": [
+      {
+        "title": "Database Migrations",
+        "description": "Always use `supabase migration up` instead of `supabase db push` when creating or applying new database migrations. This ensures proper version control and rollback capabilities."
+      },
+      {
+        "title": "Project Context",
+        "description": "This is a Next.js application with Supabase backend, using TypeScript and Tailwind CSS. The project includes budget management, transaction processing, and file upload capabilities."
+      },
+      {
+        "title": "Code Style",
+        "description": "Follow the existing code patterns in the project, use TypeScript for type safety, and maintain consistency with the current codebase structure."
+      },
+      {
+        "title": "Database Operations",
+        "description": "When suggesting database changes, always create proper migrations rather than direct schema modifications."
+      },
+      {
+        "title": "Error Handling",
+        "description": "Implement proper error handling and user feedback in all components and API routes."
+      }
+    ],
+    "closing": "Please keep these guidelines in mind when assisting with any code changes or suggestions."
+  }
+}
