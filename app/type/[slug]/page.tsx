@@ -123,7 +123,6 @@ export default async function ResourceTypePage({ params }: Props) {
         `
         )
         .in("slug", resourceSlugs)
-        .is("deleted_at", null)
         .order("nom", { ascending: true });
 
       data = resourcesData;

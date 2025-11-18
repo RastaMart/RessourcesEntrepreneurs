@@ -101,13 +101,21 @@ function EditableField({
   const handleBlur = async () => {
     if (localValue !== value) {
       setIsSaving(true);
-      await onSave(localValue);
-      setIsSaving(false);
+      try {
+        await onSave(localValue);
+      } catch (error) {
+        console.error("Error saving field:", error);
+        // Error is already handled in onSave, but we need to reset saving state
+      } finally {
+        setIsSaving(false);
+      }
+    } else {
+      setIsHovered(false);
     }
-    setIsHovered(false);
   };
 
-  const displayValue = value || (placeholder && !isEditing ? placeholder : "");
+  // Ensure consistent value for hydration
+  const displayValue = (value || (placeholder && !isEditing ? placeholder : "")).trim();
 
   if (isSaving) {
     return (
@@ -132,10 +140,14 @@ function EditableField({
     // For contacts field, render HTML to support line breaks
     if (field === "contacts") {
       if (displayValue) {
+        // Use suppressHydrationWarning to avoid hydration mismatch warnings
+        // The HTML content may differ slightly between server and client rendering
         return (
           <span
+            key={`contacts-${value?.substring(0, 50) || ''}`}
             style={{ color: !value && placeholder ? "#9ca3af" : "inherit" }}
             dangerouslySetInnerHTML={{ __html: displayValue }}
+            suppressHydrationWarning
           />
         );
       }
@@ -212,6 +224,10 @@ export default function ResourceDetailClient({ resource: initialResource, isAdmi
   const [isDeleting, setIsDeleting] = useState(false);
   const [isScraping, setIsScraping] = useState(false);
   const [scrapeMessage, setScrapeMessage] = useState<string | null>(null);
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [isLoadingImages, setIsLoadingImages] = useState(false);
+  const [scrapedImages, setScrapedImages] = useState<Array<{ url: string; source: string; score: number }>>([]);
+  const [isUpdatingImage, setIsUpdatingImage] = useState(false);
   const [supabase] = useState(() => createClient());
   const router = useRouter();
 
@@ -239,17 +255,31 @@ export default function ResourceDetailClient({ resource: initialResource, isAdmi
   const updateField = async (field: keyof Resource, value: string) => {
     try {
       const dbField = getDbFieldName(field);
-      const { error } = await supabase
+      const { error, data } = await supabase
         .from("resources")
         .update({ [dbField]: value || null })
-        .eq("slug", resource.slug);
+        .eq("slug", resource.slug)
+        .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error updating field:", {
+          field,
+          dbField,
+          value,
+          error: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint,
+        });
+        throw new Error(error.message || "Erreur lors de l'enregistrement");
+      }
 
       setResource((prev) => ({ ...prev, [field]: value }));
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error updating field:", err);
-      alert("Erreur lors de l'enregistrement. Veuillez réessayer.");
+      const errorMessage = err?.message || err?.details || "Erreur lors de l'enregistrement. Veuillez réessayer.";
+      alert(errorMessage);
+      throw err; // Re-throw so the calling code knows it failed
     }
   };
 
@@ -262,10 +292,10 @@ export default function ResourceDetailClient({ resource: initialResource, isAdmi
   const handleDeleteResource = async () => {
     setIsDeleting(true);
     try {
-      // Soft delete: set deleted_at timestamp
+      // Delete the resource (hard delete since deleted_at column doesn't exist)
       const { error: resourceError } = await supabase
         .from("resources")
-        .update({ deleted_at: new Date().toISOString() })
+        .delete()
         .eq("slug", resource.slug);
 
       if (resourceError) throw resourceError;
@@ -321,7 +351,6 @@ export default function ResourceDetailClient({ resource: initialResource, isAdmi
           `
           )
           .eq("slug", resource.slug)
-          .is("deleted_at", null)
           .single();
 
         if (!fetchError && updatedData) {
@@ -680,7 +709,7 @@ export default function ResourceDetailClient({ resource: initialResource, isAdmi
         .from("resource_resource_types")
         .delete()
         .eq("resource_slug", resource.slug)
-        .eq("resource_type_id", typeData.id)
+        .eq("resource_type_id", typeId)
         .select();
 
       console.log("Delete result:", deleteData, "Error:", error);
@@ -741,6 +770,81 @@ export default function ResourceDetailClient({ resource: initialResource, isAdmi
     }
   };
 
+  const handleOpenImageModal = async () => {
+    if (!resource.site) {
+      alert("Cette ressource n'a pas d'URL de site web.");
+      return;
+    }
+
+    setShowImageModal(true);
+    setIsLoadingImages(true);
+    setScrapedImages([]);
+
+    try {
+      const response = await fetch("/api/admin/scrape-images", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ url: resource.site }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Erreur lors du scraping des images");
+      }
+
+      setScrapedImages(data.images || []);
+    } catch (err: any) {
+      console.error("Error scraping images:", err);
+      alert(err?.message || "Erreur lors du scraping des images");
+    } finally {
+      setIsLoadingImages(false);
+    }
+  };
+
+  const handleSelectImage = async (imageUrl: string) => {
+    if (isUpdatingImage) return;
+
+    setIsUpdatingImage(true);
+    try {
+      const response = await fetch("/api/admin/update-resource-image", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          slug: resource.slug,
+          imageUrl,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        const errorMessage = data.details 
+          ? `${data.error}: ${data.details}`
+          : data.error || "Erreur lors de la mise à jour de l'image";
+        throw new Error(errorMessage);
+      }
+
+      // Update local state
+      setResource((prev) => ({ ...prev, metaImage: data.imageUrl }));
+      
+      // Close modal
+      setShowImageModal(false);
+      
+      // Refresh the page to ensure everything is in sync
+      router.refresh();
+    } catch (err: any) {
+      console.error("Error updating image:", err);
+      alert(err?.message || "Erreur lors de la mise à jour de l'image");
+    } finally {
+      setIsUpdatingImage(false);
+    }
+  };
+
   return (
     <main className="re-detail re-detail--visible">
       <div className="re-container re-detail-inner">
@@ -784,7 +888,7 @@ export default function ResourceDetailClient({ resource: initialResource, isAdmi
             </div>
           </div>
 
-          <div style={{ marginTop: "0.75rem" }}>
+          <div style={{ marginTop: "0.75rem", position: "relative" }}>
             <img
               src={resource.metaImage || "/ressources_images/placeholder.svg"}
               alt={resource.nom}
@@ -797,6 +901,37 @@ export default function ResourceDetailClient({ resource: initialResource, isAdmi
               }}
               referrerPolicy="no-referrer"
             />
+            {isAdmin && isEditMode && (
+              <button
+                type="button"
+                onClick={handleOpenImageModal}
+                style={{
+                  position: "absolute",
+                  top: "0.75rem",
+                  right: "0.75rem",
+                  padding: "0.5rem 1rem",
+                  background: "rgba(255, 255, 255, 0.95)",
+                  border: "1px solid #d1d5db",
+                  borderRadius: "0.5rem",
+                  color: "#374151",
+                  fontSize: "0.875rem",
+                  fontWeight: 500,
+                  cursor: "pointer",
+                  boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+                  transition: "all 160ms ease",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "#ffffff";
+                  e.currentTarget.style.borderColor = "#3b82f6";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "rgba(255, 255, 255, 0.95)";
+                  e.currentTarget.style.borderColor = "#d1d5db";
+                }}
+              >
+                Changer l'image
+              </button>
+            )}
           </div>
 
           <div className="re-card-tags" style={{ marginTop: "0.75rem", position: "relative" }}>
@@ -1383,6 +1518,150 @@ export default function ResourceDetailClient({ resource: initialResource, isAdmi
                 }}
               >
                 {isDeleting ? "Suppression…" : "Supprimer"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showImageModal && (
+        <div className="re-modal">
+          <div className="re-modal-backdrop" onClick={() => setShowImageModal(false)} />
+          <div className="re-modal-dialog" role="dialog" aria-modal="true" style={{ maxWidth: "90vw", width: "1000px", maxHeight: "90vh" }}>
+            <div className="re-modal-header">
+              <h3>Choisir une nouvelle image</h3>
+              <button
+                type="button"
+                onClick={() => setShowImageModal(false)}
+                style={{
+                  position: "absolute",
+                  top: "1rem",
+                  right: "1rem",
+                  background: "transparent",
+                  border: "none",
+                  fontSize: "1.5rem",
+                  cursor: "pointer",
+                  color: "#6b7280",
+                  width: "2rem",
+                  height: "2rem",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: "4px",
+                  transition: "background 160ms ease",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "#f3f4f6";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "transparent";
+                }}
+              >
+                ×
+              </button>
+            </div>
+            <div className="re-modal-body" style={{ maxHeight: "calc(90vh - 200px)", overflowY: "auto" }}>
+              {isLoadingImages ? (
+                <div style={{ textAlign: "center", padding: "3rem", color: "#6b7280" }}>
+                  <p>Scraping des images en cours...</p>
+                </div>
+              ) : scrapedImages.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "3rem", color: "#6b7280" }}>
+                  <p>Aucune image trouvée sur le site web.</p>
+                </div>
+              ) : (
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+                    gap: "1rem",
+                    padding: "0.5rem",
+                  }}
+                >
+                  {scrapedImages.map((img, index) => (
+                    <div
+                      key={index}
+                      style={{
+                        position: "relative",
+                        aspectRatio: "16/9",
+                        borderRadius: "0.5rem",
+                        overflow: "hidden",
+                        border: "2px solid #e5e7eb",
+                        cursor: isUpdatingImage ? "not-allowed" : "pointer",
+                        transition: "all 160ms ease",
+                        opacity: isUpdatingImage ? 0.6 : 1,
+                      }}
+                      onClick={() => !isUpdatingImage && handleSelectImage(img.url)}
+                      onMouseEnter={(e) => {
+                        if (!isUpdatingImage) {
+                          e.currentTarget.style.borderColor = "#3b82f6";
+                          e.currentTarget.style.transform = "scale(1.02)";
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = "#e5e7eb";
+                        e.currentTarget.style.transform = "scale(1)";
+                      }}
+                    >
+                      <img
+                        src={img.url}
+                        alt={`Image ${index + 1}`}
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                        }}
+                        referrerPolicy="no-referrer"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = "none";
+                        }}
+                      />
+                      {img.source === "meta" && (
+                        <div
+                          style={{
+                            position: "absolute",
+                            top: "0.5rem",
+                            left: "0.5rem",
+                            background: "rgba(59, 130, 246, 0.9)",
+                            color: "white",
+                            padding: "0.25rem 0.5rem",
+                            borderRadius: "0.25rem",
+                            fontSize: "0.75rem",
+                            fontWeight: 500,
+                          }}
+                        >
+                          Meta
+                        </div>
+                      )}
+                      {isUpdatingImage && (
+                        <div
+                          style={{
+                            position: "absolute",
+                            inset: 0,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            background: "rgba(0, 0, 0, 0.5)",
+                            color: "white",
+                            fontSize: "0.875rem",
+                          }}
+                        >
+                          Mise à jour...
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="re-modal-footer" style={{ justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                className="re-btn-link"
+                onClick={() => setShowImageModal(false)}
+                disabled={isUpdatingImage}
+              >
+                Annuler
               </button>
             </div>
           </div>

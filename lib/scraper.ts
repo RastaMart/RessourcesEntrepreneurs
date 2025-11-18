@@ -506,8 +506,7 @@ export async function scrapeAndUpdateResources(slug?: string) {
       const { data, error } = await supabase
         .from("resources")
         .select("slug, nom, site")
-        .not("site", "is", null)
-        .is("deleted_at", null);
+        .not("site", "is", null);
 
       if (error) {
         return { ok: false, error: error.message };

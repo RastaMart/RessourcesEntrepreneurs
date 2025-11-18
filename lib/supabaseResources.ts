@@ -90,7 +90,6 @@ export async function fetchResourceBySlug(slug: string): Promise<UiResource | nu
       "slug, nom, type, type_organisation, localisation, geographie, geographie2, site, secteur, modalite, services, public_cible, contacts, autres, supports, meta_description, image_url, socials"
     )
     .eq("slug", slug)
-    .is("deleted_at", null)
     .maybeSingle();
   if (error) {
     console.error("Supabase fetchResourceBySlug error:", error.message);

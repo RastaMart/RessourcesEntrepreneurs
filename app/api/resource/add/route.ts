@@ -20,7 +20,6 @@ export async function POST(req: NextRequest) {
       .from("resources")
       .select("slug")
       .eq("slug", body.slug)
-      .is("deleted_at", null)
       .single();
 
     if (existing) {

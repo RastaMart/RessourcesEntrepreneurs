@@ -20,7 +20,6 @@ export default async function HomePage() {
         )
       )
     `)
-    .is("deleted_at", null)
     .order("nom", { ascending: true });
 
   const rows = Array.isArray(data) ? data : [];

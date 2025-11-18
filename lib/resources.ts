@@ -129,6 +129,7 @@ export function getAllResources(): Resource[] {
         slug: slugify(row["Nom"]),
         nom: row["Nom"],
         type: row["Type"] || "",
+        types: row["Type"] ? [row["Type"]] : [], // Initialize types array from type field
         typeOrganisation: row["Type_organisation"],
         localisation: row["Localisation"],
         geographie: row["Geographie"],

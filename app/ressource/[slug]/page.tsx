@@ -25,8 +25,7 @@ export async function generateStaticParams() {
   const supabase = getStaticSupabaseClient();
   const { data } = await supabase
     .from("resources")
-    .select("slug")
-    .is("deleted_at", null);
+    .select("slug");
   return Array.isArray(data) ? data.map((r) => ({ slug: r.slug })) : [];
 }
 
@@ -37,7 +36,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     .from("resources")
     .select("*")
     .eq("slug", slug)
-    .is("deleted_at", null)
     .single();
 
   if (!data) {
@@ -65,50 +63,67 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function ResourcePage({ params }: Props) {
-  const { slug } = await params;
-  const supabase = getStaticSupabaseClient();
-  const serverSupabase = await createClient();
-  
-  // Check if user is admin
-  let isAdmin = false;
   try {
-    const {
-      data: { user },
-    } = await serverSupabase.auth.getUser();
-    if (user) {
-      const { data: profile } = await serverSupabase
-        .from("profiles")
-        .select("is_admin")
-        .eq("id", user.id)
-        .single();
-      isAdmin = Boolean(profile?.is_admin);
+    const { slug } = await params;
+    const supabase = getStaticSupabaseClient();
+    const serverSupabase = await createClient();
+    
+    // Check if user is admin
+    let isAdmin = false;
+    try {
+      const {
+        data: { user },
+      } = await serverSupabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await serverSupabase
+          .from("profiles")
+          .select("is_admin")
+          .eq("id", user.id)
+          .single();
+        isAdmin = Boolean(profile?.is_admin);
+      }
+    } catch (err) {
+      // User not logged in or error checking admin status
     }
-  } catch (err) {
-    // User not logged in or error checking admin status
-  }
 
-  const { data } = await supabase
-    .from("resources")
-    .select(
-      `
-      *,
-      social_media (
-        platform,
-        url
-      ),
-      resource_resource_types (
-        resource_type_id,
-        resource_types (
-          id,
-          name,
-          slug
+    const { data, error: queryError } = await supabase
+      .from("resources")
+      .select(
+        `
+        *,
+        social_media (
+          platform,
+          url
+        ),
+        resource_resource_types (
+          resource_type_id,
+          resource_types (
+            id,
+            name,
+            slug
+          )
         )
+      `
       )
-    `
-    )
-    .eq("slug", slug)
-    .is("deleted_at", null)
-    .single();
+      .eq("slug", slug)
+      .single();
+
+    if (queryError) {
+      console.error("Error fetching resource:", queryError);
+      return (
+        <>
+          <Header />
+          <main className="re-main">
+            <div className="re-container" style={{ padding: "3rem 0" }}>
+              <p>Erreur lors du chargement de la ressource: {queryError.message}</p>
+              <Link href="/" className="re-link-pill">
+                Retour à l'annuaire
+              </Link>
+            </div>
+          </main>
+        </>
+      );
+    }
 
   const resource = data
     ? {
@@ -154,10 +169,26 @@ export default async function ResourcePage({ params }: Props) {
     );
   }
 
-  return (
-    <>
-      <Header />
-      <ResourceDetailClient resource={resource} isAdmin={isAdmin} />
-    </>
-  );
+    return (
+      <>
+        <Header />
+        <ResourceDetailClient resource={resource} isAdmin={isAdmin} />
+      </>
+    );
+  } catch (error: any) {
+    console.error("Error in ResourcePage:", error);
+    return (
+      <>
+        <Header />
+        <main className="re-main">
+          <div className="re-container" style={{ padding: "3rem 0" }}>
+            <p>Erreur lors du chargement de la ressource: {error?.message || "Erreur inconnue"}</p>
+            <Link href="/" className="re-link-pill">
+              Retour à l'annuaire
+            </Link>
+          </div>
+        </main>
+      </>
+    );
+  }
 }

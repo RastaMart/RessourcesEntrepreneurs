@@ -50,20 +50,19 @@ export default function Header() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setUser(session?.user ?? null);
       if (session?.user) {
-        supabase
-          .from("profiles")
-          .select("is_admin")
-          .eq("id", session.user.id)
-          .single()
-          .then(({ data }) => {
-            setIsAdmin(Boolean(data?.is_admin));
-          })
-          .catch(() => {
-            setIsAdmin(false);
-          });
+        try {
+          const { data } = await supabase
+            .from("profiles")
+            .select("is_admin")
+            .eq("id", session.user.id)
+            .single();
+          setIsAdmin(Boolean(data?.is_admin));
+        } catch {
+          setIsAdmin(false);
+        }
       } else {
         setIsAdmin(false);
       }
