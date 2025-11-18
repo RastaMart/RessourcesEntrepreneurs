@@ -255,9 +255,49 @@ export default function ResourceDetailClient({ resource: initialResource, isAdmi
   const updateField = async (field: keyof Resource, value: string) => {
     try {
       const dbField = getDbFieldName(field);
+      
+      // Validate field mapping exists
+      if (!dbField || dbField === field) {
+        console.warn("Field mapping may be missing:", { field, dbField });
+      }
+      
+      // Normalize value: empty string becomes null, trim whitespace
+      let normalizedValue = value?.trim() === "" ? null : (value?.trim() || null);
+      
+      // Special validation for site field - must be a valid URL if provided
+      if (field === "site" && normalizedValue) {
+        try {
+          // Try to create a URL object to validate the format
+          // If it doesn't start with http:// or https://, try adding https://
+          let urlToValidate = normalizedValue;
+          if (!urlToValidate.match(/^https?:\/\//i)) {
+            urlToValidate = `https://${urlToValidate}`;
+          }
+          new URL(urlToValidate);
+          // If validation passes, use the normalized version (with https:// if it was missing)
+          // But keep the original user input if it already had a protocol
+          if (!normalizedValue.match(/^https?:\/\//i)) {
+            normalizedValue = urlToValidate;
+          }
+        } catch (urlError) {
+          console.error("Invalid URL format:", { field, value, normalizedValue, error: urlError });
+          throw new Error("URL invalide. Veuillez entrer une URL valide (ex: https://example.com)");
+        }
+      }
+      
+      console.log("Updating field:", { 
+        field, 
+        dbField, 
+        originalValue: value, 
+        normalizedValue, 
+        slug: resource.slug,
+        valueType: typeof value,
+        valueLength: value?.length 
+      });
+      
       const { error, data } = await supabase
         .from("resources")
-        .update({ [dbField]: value || null })
+        .update({ [dbField]: normalizedValue })
         .eq("slug", resource.slug)
         .select();
 
@@ -266,6 +306,8 @@ export default function ResourceDetailClient({ resource: initialResource, isAdmi
           field,
           dbField,
           value,
+          normalizedValue,
+          slug: resource.slug,
           error: error.message,
           code: error.code,
           details: error.details,
@@ -274,7 +316,11 @@ export default function ResourceDetailClient({ resource: initialResource, isAdmi
         throw new Error(error.message || "Erreur lors de l'enregistrement");
       }
 
-      setResource((prev) => ({ ...prev, [field]: value }));
+      console.log("Field updated successfully:", { field, dbField, data });
+      
+      // Update local state - preserve original value format for UI consistency
+      // Use empty string for display if null was saved
+      setResource((prev) => ({ ...prev, [field]: normalizedValue ?? "" }));
     } catch (err: any) {
       console.error("Error updating field:", err);
       const errorMessage = err?.message || err?.details || "Erreur lors de l'enregistrement. Veuillez réessayer.";
@@ -1128,7 +1174,7 @@ export default function ResourceDetailClient({ resource: initialResource, isAdmi
             ))}
           </div>
 
-          {resource.metaDescription && (
+          {(resource.metaDescription || isEditMode) && (
             <div className="re-detail-section">
               <h3>Description</h3>
               <div>
@@ -1137,6 +1183,7 @@ export default function ResourceDetailClient({ resource: initialResource, isAdmi
                   value={resource.metaDescription || ""}
                   isEditing={isEditMode}
                   onSave={(val) => updateField("metaDescription", val)}
+                  placeholder={isEditMode ? "Ajouter une description" : undefined}
                 />
               </div>
             </div>
